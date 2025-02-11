@@ -24,7 +24,6 @@ const App = () => {
     fetchCategories();
   }, []);
 
-  // Fetch categories
   const fetchCategories = async () => {
     try {
       const response = await fetch('https://v2.jokeapi.dev/categories');
@@ -35,17 +34,38 @@ const App = () => {
     }
   };
 
-  // Pull to refresh (reset everything)
-  const onRefresh = async () => {
-    setRefreshing(true);
-    setJokes({});
-    setExpandedItems({});
-    setLoadingJokes({});
-    await fetchCategories();
-    setRefreshing(false);
+  const fetchJokes = async (category, addMore = false) => {
+    if (addMore || !jokes[category]) {
+      setLoadingJokes(prev => ({...prev, [category]: true}));
+
+      try {
+        const response = await fetch(
+          `https://v2.jokeapi.dev/joke/${category}?type=single&amount=2`,
+        );
+        const result = await response.json();
+
+        if (response.status == 200) {
+          const newJokes = result.jokes.map(j => j.joke);
+
+          setJokes(prev => ({
+            ...prev,
+            [category]: addMore
+              ? [...(prev[category] || []), ...newJokes]
+              : newJokes,
+          }));
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoadingJokes(prev => ({...prev, [category]: false}));
+      }
+    }
   };
 
-  // Toggle expand/collapse without re-fetching jokes
+  const moveToTop = item => {
+    setData(prevData => [item, ...prevData.filter(i => i !== item)]);
+  };
+
   const toggleExpand = category => {
     setExpandedItems(prev => ({
       ...prev,
@@ -57,39 +77,15 @@ const App = () => {
     }
   };
 
-  // Fetch jokes (append if addMore is true)
-  const fetchJokes = async (category, addMore = false) => {
-    if (addMore || !jokes[category]) {
-      setLoadingJokes(prev => ({...prev, [category]: true}));
-
-      try {
-        const response = await fetch(
-          `https://v2.jokeapi.dev/joke/${category}?type=single&amount=2`,
-        );
-        const result = await response.json();
-
-        const newJokes = result.jokes.map(j => j.joke);
-
-        setJokes(prev => ({
-          ...prev,
-          [category]: addMore
-            ? [...(prev[category] || []), ...newJokes]
-            : newJokes,
-        }));
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoadingJokes(prev => ({...prev, [category]: false}));
-      }
-    }
+  const onRefresh = async () => {
+    setRefreshing(true);
+    setJokes({});
+    setExpandedItems({});
+    setLoadingJokes({});
+    await fetchCategories();
+    setRefreshing(false);
   };
 
-  // Move item to top
-  const moveToTop = item => {
-    setData(prevData => [item, ...prevData.filter(i => i !== item)]);
-  };
-
-  // Show joke modal
   const showModal = joke => {
     setSelectedJoke(joke);
     setModalVisible(true);
@@ -105,7 +101,6 @@ const App = () => {
         }
         renderItem={({item, index}) => (
           <View style={styles.itemContainer}>
-            {/* Main Category Button */}
             <TouchableOpacity
               style={styles.item}
               onPress={() => toggleExpand(item)}>
@@ -114,31 +109,39 @@ const App = () => {
               <TouchableOpacity
                 style={styles.goTopButton}
                 onPress={() => moveToTop(item)}>
-                <Text style={styles.buttonText}>Go Top ⬆️</Text>
+                <Text style={styles.buttonText}>
+                  {index == 0 ? 'Top' : 'Go Top'}
+                </Text>
               </TouchableOpacity>
             </TouchableOpacity>
 
-            {/* Expanded Content */}
             {expandedItems[item] && (
               <View style={styles.expandedContainer}>
                 {loadingJokes[item] ? (
                   <ActivityIndicator size="small" color="#007bff" />
                 ) : (
                   <>
-                    {jokes[item]?.map((joke, idx) => (
-                      <TouchableOpacity
-                        key={idx}
-                        onPress={() => showModal(joke)}>
-                        <Text style={styles.expandedText}>{joke}</Text>
-                      </TouchableOpacity>
-                    ))}
+                    {jokes[item] == null ? (
+                      <Text>No Data</Text>
+                    ) : (
+                      <>
+                        {jokes[item]?.map((joke, idx) => (
+                          <TouchableOpacity
+                            key={idx}
+                            onPress={() => showModal(joke)}>
+                            <Text style={styles.expandedText}>{joke}</Text>
+                          </TouchableOpacity>
+                        ))}
 
-                    {/* Add More Button */}
-                    <TouchableOpacity
-                      style={styles.addMoreButton}
-                      onPress={() => fetchJokes(item, true)}>
-                      <Text style={styles.addMoreText}>Add More ➕</Text>
-                    </TouchableOpacity>
+                        {jokes[item].length < 6 && (
+                          <TouchableOpacity
+                            style={styles.addMoreButton}
+                            onPress={() => fetchJokes(item, true)}>
+                            <Text style={styles.addMoreText}>Add More ➕</Text>
+                          </TouchableOpacity>
+                        )}
+                      </>
+                    )}
                   </>
                 )}
               </View>
@@ -147,7 +150,6 @@ const App = () => {
         )}
       />
 
-      {/* Modal for Joke Display */}
       <Modal
         transparent={true}
         animationType="slide"
