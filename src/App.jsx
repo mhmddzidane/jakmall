@@ -1,18 +1,12 @@
 import React, {useEffect, useState} from 'react';
-import {
-  SafeAreaView,
-  FlatList,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  View,
-  ActivityIndicator,
-  Modal,
-  RefreshControl,
-} from 'react-native';
+import {FlatList, RefreshControl, SafeAreaView, StyleSheet} from 'react-native';
+import CategoryItem from './components/CategoryItem';
+import JokeModal from './components/JokeModal';
+
+const API_BASE = 'https://v2.jokeapi.dev';
 
 const App = () => {
-  const [data, setData] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [expandedItems, setExpandedItems] = useState({});
   const [jokes, setJokes] = useState({});
   const [loadingJokes, setLoadingJokes] = useState({});
@@ -26,55 +20,46 @@ const App = () => {
 
   const fetchCategories = async () => {
     try {
-      const response = await fetch('https://v2.jokeapi.dev/categories');
+      const response = await fetch(`${API_BASE}/categories`);
       const result = await response.json();
-      setData(result.categories);
+      setCategories(result.categories);
     } catch (err) {
       console.error(err);
     }
   };
 
   const fetchJokes = async (category, addMore = false) => {
-    if (addMore || !jokes[category]) {
-      setLoadingJokes(prev => ({...prev, [category]: true}));
+    setLoadingJokes(prev => ({...prev, [category]: true}));
 
-      try {
-        const response = await fetch(
-          `https://v2.jokeapi.dev/joke/${category}?type=single&amount=2`,
-        );
-        const result = await response.json();
+    try {
+      const response = await fetch(
+        `${API_BASE}/joke/${category}?type=single&amount=2`,
+      );
+      const result = await response.json();
 
-        if (response.status == 200) {
-          const newJokes = result.jokes.map(j => j.joke);
-
-          setJokes(prev => ({
-            ...prev,
-            [category]: addMore
-              ? [...(prev[category] || []), ...newJokes]
-              : newJokes,
-          }));
-        }
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoadingJokes(prev => ({...prev, [category]: false}));
+      if (response.ok) {
+        const newJokes = result.jokes.map(j => j.joke);
+        setJokes(prev => ({
+          ...prev,
+          [category]: addMore
+            ? [...(prev[category] || []), ...newJokes]
+            : newJokes,
+        }));
       }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingJokes(prev => ({...prev, [category]: false}));
     }
   };
 
   const moveToTop = item => {
-    setData(prevData => [item, ...prevData.filter(i => i !== item)]);
+    setCategories(prev => [item, ...prev.filter(i => i !== item)]);
   };
 
   const toggleExpand = category => {
-    setExpandedItems(prev => ({
-      ...prev,
-      [category]: !prev[category],
-    }));
-
-    if (!jokes[category]) {
-      fetchJokes(category);
-    }
+    setExpandedItems(prev => ({...prev, [category]: !prev[category]}));
+    if (!jokes[category]) fetchJokes(category);
   };
 
   const onRefresh = async () => {
@@ -86,86 +71,35 @@ const App = () => {
     setRefreshing(false);
   };
 
-  const showModal = joke => {
-    setSelectedJoke(joke);
-    setModalVisible(true);
-  };
-
   return (
     <SafeAreaView style={styles.container}>
       <FlatList
-        data={data}
+        data={categories}
         keyExtractor={(item, index) => index.toString()}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
         renderItem={({item, index}) => (
-          <View style={styles.itemContainer}>
-            <TouchableOpacity
-              style={styles.item}
-              onPress={() => toggleExpand(item)}>
-              <Text style={styles.number}>{index + 1}.</Text>
-              <Text style={styles.text}>{item}</Text>
-              <TouchableOpacity
-                style={styles.goTopButton}
-                onPress={() => moveToTop(item)}>
-                <Text style={styles.buttonText}>
-                  {index == 0 ? 'Top' : 'Go Top'}
-                </Text>
-              </TouchableOpacity>
-            </TouchableOpacity>
-
-            {expandedItems[item] && (
-              <View style={styles.expandedContainer}>
-                {loadingJokes[item] ? (
-                  <ActivityIndicator size="small" color="#007bff" />
-                ) : (
-                  <>
-                    {jokes[item] == null ? (
-                      <Text>No Data</Text>
-                    ) : (
-                      <>
-                        {jokes[item]?.map((joke, idx) => (
-                          <TouchableOpacity
-                            key={idx}
-                            onPress={() => showModal(joke)}>
-                            <Text style={styles.expandedText}>{joke}</Text>
-                          </TouchableOpacity>
-                        ))}
-
-                        {jokes[item].length < 6 && (
-                          <TouchableOpacity
-                            style={styles.addMoreButton}
-                            onPress={() => fetchJokes(item, true)}>
-                            <Text style={styles.addMoreText}>Add More ➕</Text>
-                          </TouchableOpacity>
-                        )}
-                      </>
-                    )}
-                  </>
-                )}
-              </View>
-            )}
-          </View>
+          <CategoryItem
+            item={item}
+            index={index}
+            expanded={expandedItems[item]}
+            jokes={jokes[item]}
+            loading={loadingJokes[item]}
+            toggleExpand={toggleExpand}
+            moveToTop={moveToTop}
+            fetchJokes={fetchJokes}
+            showModal={setSelectedJoke}
+            openModal={() => setModalVisible(true)}
+          />
         )}
       />
 
-      <Modal
-        transparent={true}
-        animationType="slide"
+      <JokeModal
         visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}>
-        <View style={styles.modalBackground}>
-          <View style={styles.modalContainer}>
-            <Text style={styles.modalText}>{selectedJoke}</Text>
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => setModalVisible(false)}>
-              <Text style={styles.closeButtonText}>Close</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+        joke={selectedJoke}
+        onClose={() => setModalVisible(false)}
+      />
     </SafeAreaView>
   );
 };
@@ -175,93 +109,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f5f5f5',
     padding: 20,
-  },
-  itemContainer: {
-    marginBottom: 10,
-  },
-  item: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#007bff',
-    padding: 15,
-    borderRadius: 5,
-  },
-  number: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginRight: 10,
-  },
-  text: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
-    flex: 1,
-  },
-  expandedContainer: {
-    backgroundColor: '#fff',
-    padding: 15,
-    marginTop: 5,
-    borderRadius: 5,
-    elevation: 2,
-  },
-  expandedText: {
-    fontSize: 16,
-    color: '#333',
-    marginBottom: 10,
-  },
-  goTopButton: {
-    backgroundColor: '#28a745',
-    padding: 10,
-    borderRadius: 5,
-    alignItems: 'center',
-  },
-  buttonText: {
-    fontSize: 16,
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-  addMoreButton: {
-    backgroundColor: '#ff9800',
-    padding: 10,
-    borderRadius: 5,
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  addMoreText: {
-    fontSize: 16,
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-  modalBackground: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContainer: {
-    width: '80%',
-    backgroundColor: '#fff',
-    padding: 20,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  modalText: {
-    fontSize: 16,
-    color: '#333',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  closeButton: {
-    backgroundColor: '#007bff',
-    padding: 10,
-    borderRadius: 5,
-    alignItems: 'center',
-  },
-  closeButtonText: {
-    fontSize: 16,
-    color: '#fff',
-    fontWeight: 'bold',
   },
 });
 
