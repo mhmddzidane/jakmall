@@ -5,14 +5,26 @@ import JokeModal from './components/JokeModal';
 
 const API_BASE = 'https://v2.jokeapi.dev';
 
-const App = () => {
-  const [categories, setCategories] = useState([]);
-  const [expandedItems, setExpandedItems] = useState({});
-  const [jokes, setJokes] = useState({});
-  const [loadingJokes, setLoadingJokes] = useState({});
-  const [refreshing, setRefreshing] = useState(false);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [selectedJoke, setSelectedJoke] = useState('');
+interface Jokes {
+  [key: string]: string[];
+}
+
+interface LoadingJokes {
+  [key: string]: boolean;
+}
+
+interface ExpandedItems {
+  [key: string]: boolean;
+}
+
+const App: React.FC = () => {
+  const [categories, setCategories] = useState<string[]>([]);
+  const [expandedItems, setExpandedItems] = useState<ExpandedItems>({});
+  const [jokes, setJokes] = useState<Jokes>({});
+  const [loadingJokes, setLoadingJokes] = useState<LoadingJokes>({});
+  const [refreshing, setRefreshing] = useState<boolean>(false);
+  const [modalVisible, setModalVisible] = useState<boolean>(false);
+  const [selectedJoke, setSelectedJoke] = useState<string>('');
 
   useEffect(() => {
     fetchCategories();
@@ -28,7 +40,7 @@ const App = () => {
     }
   };
 
-  const fetchJokes = async (category, addMore = false) => {
+  const fetchJokes = async (category: string, addMore = false) => {
     setLoadingJokes(prev => ({...prev, [category]: true}));
 
     try {
@@ -38,7 +50,7 @@ const App = () => {
       const result = await response.json();
 
       if (response.ok) {
-        const newJokes = result.jokes.map(j => j.joke);
+        const newJokes = result.jokes.map((j: {joke: string}) => j.joke);
         setJokes(prev => ({
           ...prev,
           [category]: addMore
@@ -53,11 +65,11 @@ const App = () => {
     }
   };
 
-  const moveToTop = item => {
+  const moveToTop = (item: string) => {
     setCategories(prev => [item, ...prev.filter(i => i !== item)]);
   };
 
-  const toggleExpand = category => {
+  const toggleExpand = (category: string) => {
     setExpandedItems(prev => ({...prev, [category]: !prev[category]}));
     if (!jokes[category]) fetchJokes(category);
   };

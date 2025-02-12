@@ -1,6 +1,13 @@
+import React from 'react';
 import {Modal, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 
-const JokeModal = ({visible, joke, onClose}) => (
+interface JokeModalProps {
+  visible: boolean;
+  joke: string;
+  onClose: () => void;
+}
+
+const JokeModal: React.FC<JokeModalProps> = ({visible, joke, onClose}) => (
   <Modal
     transparent
     animationType="slide"

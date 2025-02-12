@@ -1,3 +1,4 @@
+import React from 'react';
 import {
   ActivityIndicator,
   StyleSheet,
@@ -6,7 +7,20 @@ import {
   View,
 } from 'react-native';
 
-const CategoryItem = ({
+interface CategoryItemProps {
+  item: string;
+  index: number;
+  expanded: boolean;
+  jokes?: string[];
+  loading: boolean;
+  toggleExpand: (category: string) => void;
+  moveToTop: (category: string) => void;
+  fetchJokes: (category: string, addMore?: boolean) => void;
+  showModal: (joke: string) => void;
+  openModal: () => void;
+}
+
+const CategoryItem: React.FC<CategoryItemProps> = ({
   item,
   index,
   expanded,
@@ -35,7 +49,7 @@ const CategoryItem = ({
           <ActivityIndicator size="small" color="#007bff" />
         ) : (
           <>
-            {jokes ? (
+            {jokes && jokes.length > 0 ? (
               jokes.map((joke, idx) => (
                 <TouchableOpacity
                   key={idx}
@@ -50,7 +64,7 @@ const CategoryItem = ({
               <Text>No Data</Text>
             )}
 
-            {jokes?.length < 6 && (
+            {jokes && jokes.length < 6 && (
               <TouchableOpacity
                 style={styles.addMoreButton}
                 onPress={() => fetchJokes(item, true)}>
@@ -118,7 +132,6 @@ const styles = StyleSheet.create({
     color: '#333',
     marginBottom: 10,
   },
-
   addMoreButton: {
     backgroundColor: '#FFAA46',
     padding: 10,
